@@ -90,30 +90,103 @@ fn own_string(s: &String) {
 // or another part of your program without actually transferring ownership of the variable. 
 // When you borrow a variable, you're essentially saying 
 // "I want to use this variable for a little while, but I promise I won't modify it."
-fn main() {
-    let my_vec = vec![1, 2, 3, 4, 5];
-    let my_int = 10;
-    let my_string = String::from("Hello, world!");
+// fn main() {
+//     let my_vec = vec![1, 2, 3, 4, 5];
+//     let my_int = 10;
+//     let my_string = String::from("Hello, world!");
 
-    // use returned value from own_integer
-    let incremented = own_integer(&my_int);
-    println!("original my_int: {}", my_int);
-    println!("returned incremented: {}", incremented);
+//     // use returned value from own_integer
+//     let incremented = own_integer(&my_int);
+//     println!("original my_int: {}", my_int);
+//     println!("returned incremented: {}", incremented);
 
-    // borrow the string (no move) and then still use it afterwards
-    own_string(&my_string);
-    println!("my_string is still usable: {}", my_string);
+//     // borrow the string (no move) and then still use it afterwards
+//     own_string(&my_string);
+//     println!("my_string is still usable: {}", my_string);
 
-    // borrow the vector and get a new owned vector back
-    let new_vector = own_vec(&my_vec);
-    println!("original vector: {:?}", my_vec);
-    println!("new vector: {:?}", new_vector);
+//     // borrow the vector and get a new owned vector back
+//     let new_vector = own_vec(&my_vec);
+//     println!("original vector: {:?}", my_vec);
+//     println!("new vector: {:?}", new_vector);
 
-    borrow_vec(&my_vec);
-    borrow_string(&my_string);
-}
+//     borrow_vec(&my_vec);
+//     borrow_string(&my_string);
+// }
 
 // Borrowing is a key concept in Rust because it allows you to write code that is both safe and efficient. 
 // By lending ownership of a variable instead of transferring it, Rust ensures that only 
 // one part of your program can modify the variable at a time, which helps prevent 
 // bugs and makes it easier to reason about your code.
+
+
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+
+fn main() {
+    let file = File::open("non_existent_file.txt");
+    let file = match file {
+        Ok(file) => file,
+        Err(error) => {
+            match error.kind() {
+                std::io::ErrorKind::NotFound => {
+                    // If file not found, create it with some default content then open it
+                    if let Err(e) = std::fs::write("non_existent_file.txt", "This file was created because it was missing.") {
+                        eprintln!("Failed to create file: {}", e);
+                        std::process::exit(1);
+                    }
+                    File::open("non_existent_file.txt").expect("Failed to open file after creating it")
+                }
+                std::io::ErrorKind::PermissionDenied => {
+                    eprintln!(
+                        "Permission denied opening 'non_existent_file.txt': {}. \
+                        Check file permissions or run with appropriate privileges.",
+                        error
+                    );
+                    std::process::exit(1);
+                }
+                _ => {
+                    eprintln!("Error opening file: {}", error);
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+
+    // Optionally write to a separate output file
+    write_to_file("output.txt", "Hello, world!!!!");
+
+    let reader = BufReader::new(file);
+    for line in reader.lines() {
+        match line {
+            Ok(line) => println!("{}", line),
+            Err(error) => {
+                eprintln!("Error reading line: {}", error);
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+//create a function that writes to a file and handles errors using the match statement
+fn write_to_file(filename: &str, content: &str) {
+    let result = std::fs::write(filename, content);
+    match result {
+        Ok(_) => println!("Successfully wrote to {}", filename),
+        Err(error) => {
+            match error.kind() {
+                std::io::ErrorKind::NotFound => {
+                    eprintln!("File not found when writing to '{}': {}", filename, error);
+                    return;
+                }
+                std::io::ErrorKind::PermissionDenied => {
+                    eprintln!("Permission denied writing to '{}': {}. Check permissions.", filename, error);
+                    return;
+                }
+                _ => {
+                    eprintln!("Error writing to file '{}': {}", filename, error);
+                    return;
+                }
+            }
+        }
+    }
+}
